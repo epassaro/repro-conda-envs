@@ -1,0 +1,42 @@
+name: pack
+
+on:
+  release:
+    types: [published]
+
+env:
+  BASENAME: ${{ github.event.repository.name }}-${{ github.event.release.tag_name }} 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+            miniforge-variant: Mambaforge
+            miniforge-version: latest
+            environment-file: environment.yml
+            activate-environment: my-env
+            use-mamba: true
+
+      - name: Freeze packages
+        shell: bash -l {0}
+        run: conda env export -n my-env > $BASENAME.yml
+
+      - name: Install conda-pack
+        shell: bash -l {0}
+        run: mamba install -c conda-forge conda-pack
+
+      - name: Pack environment
+        shell: bash -l {0}
+        run: conda pack -n my-env -o $BASENAME.tar.gz
+
+      - name: Upload assets
+        uses: AButler/upload-release-assets@v2.0
+        with:
+          files: '${{ env.BASENAME }}.{yml,tar.gz}'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ github.event.release.tag_name }}
